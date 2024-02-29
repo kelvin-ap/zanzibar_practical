@@ -128,24 +128,24 @@ services:
       - MOSQUITTO_URL_WEATHER_STATION=${MOSQUITTO_URL_WEATHER_STATION}
     restart: on-failure:10
 
-  metadatameasurements:
-    container_name: flwsb-metadatameasurements
-    build:
-      context: ./metadatameasurements
-      dockerfile: ./Dockerfile
-    depends_on:
-      - influxdb
-      - mosquitto
-    environment:
-      - TZ=${TIMEZONE}
-      - INFLUXDB_URL=${INFLUXDB_URL}
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
-      - INFLUXDB_ORG=${INFLUXDB_ORG}
-      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
-      - MOSQUITTO_USER=${MOSQUITTO_USER}
-      - MOSQUITTO_PASSWD=${MOSQUITTO_PASSWD}
-      - MOSQUITTO_URL_WEATHER_STATION=${MOSQUITTO_URL_WEATHER_STATION}
-    restart: on-failure:10
+  # metadatameasurements:
+  #   container_name: flwsb-metadatameasurements
+  #   build:
+  #     context: ./metadatameasurements
+  #     dockerfile: ./Dockerfile
+  #   depends_on:
+  #     - influxdb
+  #     - mosquitto
+  #   environment:
+  #     - TZ=${TIMEZONE}
+  #     - INFLUXDB_URL=${INFLUXDB_URL}
+  #     - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+  #     - INFLUXDB_ORG=${INFLUXDB_ORG}
+  #     - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
+  #     - MOSQUITTO_USER=${MOSQUITTO_USER}
+  #     - MOSQUITTO_PASSWD=${MOSQUITTO_PASSWD}
+  #     - MOSQUITTO_URL_WEATHER_STATION=${MOSQUITTO_URL_WEATHER_STATION}
+  #   restart: on-failure:10
 
 volumes:
   grafana:
