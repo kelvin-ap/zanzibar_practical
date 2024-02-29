@@ -24,8 +24,9 @@ certbot_certs: []
 #   domains:
 #     - example1.com
 #     - example2.com
-# - domains:
-#     - example3.com
+domains:
+  - grafana.iot-ap.be
+  - api.iot-ap.be
 
 certbot_create_command: >-
   {{ certbot_script }} certonly --{{ certbot_create_method  }}
