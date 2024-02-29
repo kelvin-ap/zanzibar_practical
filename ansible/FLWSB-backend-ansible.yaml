@@ -6,6 +6,8 @@
     domains:
       - grafana.iot-ap.be
       - api.iot-ap.be
+    email:
+      - s117203@ap.be
   roles:
     - ufwinstall
     - install-docker-debian
@@ -32,6 +34,7 @@
         state: stopped
         enabled: no
       when: nginx_enabled|success
+      ignore_errors: yes
 
     - name: Install packages
       ansible.builtin.apt:
@@ -71,21 +74,30 @@
         dest: ~/flexible-lorawan-architecture/src/.env
         mode: preserve # keep same permissions as source file
 
-    # - name: Generate SSL certificates
-    #   ansible.builtin.command: certbot certonly --agree-tos --email "{{ email }}" --standalone -d {{ item }}
-    #   args:
-    #     creates: "/etc/letsencrypt/live/{{ item }}"
-    #   with_items: "{{ domains }}"
-    #   become: true
+    - name: Generate SSL certificates
+      ansible.builtin.command: certbot certonly --agree-tos --email "{{ email }}" --standalone -d {{ item }}
+      args:
+        creates: "/etc/letsencrypt/live/{{ item }}"
+      with_items: "{{ domains }}"
+      become: true
 
-    # - name: Renew certificates
-    #   ansible.builtin.cron:
-    #     name: "Renew SSL certs"
-    #     job: "certbot renew --quiet --post-hook 'systemctl reload nginx'"
-    #     minute: "0"
-    #     hour: "0"
-    #     weekday: "1"
-    #     # crontab runs every monday at 00:00
+    - name: Renew certificates
+      ansible.builtin.cron:
+        name: "Renew SSL certs"
+        job: "certbot renew --quiet --post-hook 'systemctl reload nginx'"
+        minute: "0"
+        hour: "0"
+        weekday: "1"
+        # crontab runs every monday at 00:00
+
+    - name: Bring docker compose down
+      community.docker.docker_compose:
+        project_src: flexible-lorawan-architecture/src/
+        files:
+          - docker-compose.yaml
+        stopped: true
+        build: false
+      become: true
 
     - name: Bring docker compose up
       community.docker.docker_compose:
