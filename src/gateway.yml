@@ -1,0 +1,83 @@
+- hosts: hostname
+  user: username
+  become: true
+
+  vars:
+    - usernames:
+      - usernames of Github account
+
+  roles:
+    - gatewayStatus
+
+  tasks:
+  # update en upgrade
+  - name: update and upgrade apt packages
+    ansible.builtin.apt:
+      update_cache: true
+      cache_valid_time: 86400 #1day old won't update with this
+      upgrade: yes 
+
+  - name: Enable SPI in 
+    lineinfile:
+      path: /boot/config.txt
+      regexp: '^#dtparam=spi=on$'
+      line: 'dtparam=spi=on'
+      state: present
+
+  - name: Install ufw  
+    ansible.builtin.apt:
+      name: ufw
+      state: present
+
+  - name: firewall allow ssh 
+    ufw:
+      proto: tcp
+      port: ssh
+      rule: limit #limit amont of loggins for bruteforce attacks
+  
+  - name: restart firewall
+    service:
+      name: ufw
+      state: restarted
+
+  - name: enabled ufw
+    service:
+      name: ufw
+      enabled: yes
+
+      
+  - name: create file
+    file:
+      path: "/home/flwsb/.ssh/authorized_keys"
+      state: touch
+
+
+  - name: get SSH keys from GitHub
+    uri: >
+      url=https://github.com/{{ item }}.keys
+      return_content=true
+    register: ssh_keys
+    with_items: "{{ usernames }}"
+
+  - name: add SSH keys to ~/.ssh/authorized_keys
+    lineinfile: >
+      dest=/home/flwsb/.ssh/authorized_keys
+      line="{{ item.0.content }}"
+      insertafter="{{ item.1 }}"
+    with_together:
+      - "{{ ssh_keys.results }}"
+      - "{{ usernames }}"
+    when: "usernames | count > 0"
+    become: false
+
+  - name: disable ssh password authentication
+    lineinfile:
+      dest=/etc/ssh/sshd_config
+      line='PasswordAuthentication no'
+      state=present
+
+  - name: restart ssh
+    service:
+      name: ssh
+      state: restarted
+

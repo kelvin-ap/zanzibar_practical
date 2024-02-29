@@ -1,0 +1,7 @@
+.env
+node_modules/
+mosquitto.passwd
+flows_cred.json
+settings.js
+influx-configs
+ansible/hosts

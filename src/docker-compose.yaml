@@ -1,0 +1,153 @@
+version: "3"
+services:
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: ./Dockerfile
+    container_name: flwsb-nginx
+    environment:
+      - API_USER
+      - API_PASSWD
+    volumes:
+      - ./nginx/error.log:/etc/nginx/error_log.log:rw
+      - /etc/letsencrypt/:/etc/letsencrypt/:ro
+    ports:
+      - 80:80
+      - 443:443
+    restart: on-failure:10
+
+  influxdb:
+    container_name: flwsb-influxdb
+    build:
+      context: .
+      dockerfile: ./influxdb/Dockerfile
+    ports:
+      - 127.0.0.1:8086:8086 # for debugging
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    environment:
+      - TZ=${TIMEZONE}
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_USERNAME}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASSWD}
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG}
+      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN}
+      - DOCKER_INFLUXDB_INIT_CLI_CONFIG_NAME=FLWSB
+    restart: on-failure:10
+
+  mosquitto:
+    container_name: flwsb-mosquitto
+    build:
+      context: ./mosquitto
+      dockerfile: ./Dockerfile
+    ports:
+      - 1883:1883
+    volumes:
+      - mosquitto:/mosquitto
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+    environment:
+      - TZ=${TIMEZONE}
+      - MOSQUITTO_USER=${MOSQUITTO_USER}
+      - MOSQUITTO_PASSWD=${MOSQUITTO_PASSWD}
+    restart: on-failure:10
+
+  grafana:
+    container_name: flwsb-grafana
+    image: grafana/grafana:latest
+    depends_on:
+      - noderuby
+      - influxdb
+    environment:
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWD}
+      - GF_SERVER_DOMAIN=${GRAFANA_SERVER_DOMAIN}
+      - GF_SERVER_ROOT_URL=https://%(domain)s/ # Grafana is behind reverse proxy -> normal HTTPS
+      - GRAFANA_INFLUX_BUCKET=${INFLUXDB_BUCKET}
+      - GRAFANA_INFLUX_TOKEN=${INFLUXDB_TOKEN}
+      - GRAFANA_INFLUX_ORG=${INFLUXDB_ORG}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - grafana:/var/lib/grafana
+    restart: on-failure:10
+
+  noderuby:
+    container_name: flwsb-noderuby
+    build:
+      context: ./noderuby
+      dockerfile: ./Dockerfile
+    depends_on:
+      - influxdb
+    environment:
+      - TZ=${TIMEZONE}
+      - INFLUXDB_URL=${INFLUXDB_URL}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+      - INFLUXDB_ORG=${INFLUXDB_ORG}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
+    restart: on-failure:10
+    ports:
+      - 127.0.0.1:5000:5000
+
+  sensormeasurements:
+    container_name: flwsb-sensormeasurements
+    build: 
+      context: ./sensormeasurements
+      dockerfile: ./Dockerfile
+    depends_on:
+      - influxdb
+    environment:
+      - TZ=${TIMEZONE}
+      - INFLUXDB_URL=${INFLUXDB_URL}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+      - INFLUXDB_ORG=${INFLUXDB_ORG}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
+      # - TTN_USERNAME=${TTN_USERNAME}
+      # - TTN_HOST=${TTN_HOST}
+      # - TTN_API_TOKEN=${TTN_API_TOKEN}
+      # - TTN_MQTT_TOPIC=${TTN_MQTT_TOPIC}
+    restart: on-failure:10
+
+  weatherstationmeasurements:
+    container_name: flwsb-weatherstationmeasurements
+    build:
+      context: ./weatherstationmeasurements
+      dockerfile: ./Dockerfile
+    depends_on:
+      - influxdb
+      - mosquitto
+    environment:
+      - TZ=${TIMEZONE}
+      - INFLUXDB_URL=${INFLUXDB_URL}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+      - INFLUXDB_ORG=${INFLUXDB_ORG}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
+      - MOSQUITTO_USER=${MOSQUITTO_USER}
+      - MOSQUITTO_PASSWD=${MOSQUITTO_PASSWD}
+      - MOSQUITTO_URL_WEATHER_STATION=${MOSQUITTO_URL_WEATHER_STATION}
+    restart: on-failure:10
+
+  metadatameasurements:
+    container_name: flwsb-metadatameasurements
+    build:
+      context: ./metadatameasurements
+      dockerfile: ./Dockerfile
+    depends_on:
+      - influxdb
+      - mosquitto
+    environment:
+      - TZ=${TIMEZONE}
+      - INFLUXDB_URL=${INFLUXDB_URL}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+      - INFLUXDB_ORG=${INFLUXDB_ORG}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
+      - MOSQUITTO_USER=${MOSQUITTO_USER}
+      - MOSQUITTO_PASSWD=${MOSQUITTO_PASSWD}
+      - MOSQUITTO_URL_WEATHER_STATION=${MOSQUITTO_URL_WEATHER_STATION}
+    restart: on-failure:10
+
+volumes:
+  grafana:
+  influxdb_data:
+  mosquitto:

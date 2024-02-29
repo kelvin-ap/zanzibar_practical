@@ -1,0 +1,60 @@
+---
+- name: Ensure the current OS is Debian
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == 'Debian'
+    fail_msg: "Current OS is {{ ansible_facts['distribution'] }}, this role is for Debian only"
+  when: ansible_facts['distribution'] != 'Debian'
+
+# https://docs.docker.com/engine/install/debian/
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+
+- name: Uninstall old versions
+  ansible.builtin.apt:
+    state: absent
+    name:
+      - docker.io
+      - docker-compose
+      - docker-doc
+      - containerd
+      - runc
+
+- name: Install dependencies
+  ansible.builtin.apt:
+    state: present
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+
+- name: Add Docker's GPG key
+  ansible.builtin.apt_key:
+    state: present
+    url: https://download.docker.com/linux/debian/gpg
+
+- name: Add Docker repo
+  ansible.builtin.apt_repository:
+    state: present
+    repo: deb https://download.docker.com/linux/debian bookworm stable
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+
+- name: Install Docker engine
+  ansible.builtin.apt:
+    state: present
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+
+- name: Verify install
+  community.docker.docker_container:
+    name: HelloWorld
+    image: hello-world

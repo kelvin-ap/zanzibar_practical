@@ -1,0 +1,63 @@
+---
+# tasks file for GatewayStatusReporter
+
+- name: Install git, python3 and pip
+  ansible.builtin.apt:
+    pkg:
+      - python3
+      - python3-pip
+    state: present
+    update_cache: yes
+
+- name: Install python3 packages
+  ansible.builtin.pip :
+    name:
+      - smbus
+      - paho.mqtt
+      - python-dotenv
+
+- name: Clone git repo
+  ansible.builtin.git :
+    repo: 'https://github.com/flufsor/GatewayStatusReporter'
+    dest: /home/flwsb/GatewayStatusReporter
+
+- name: Copy .env file
+  ansible.builtin.copy:
+    src: .env
+    dest: /home/flwsb/GatewayStatusReporter/.env
+    owner: flwsb
+    group: flwsb
+    mode: '0600'
+
+- name: Enable I2C
+  ansible.builtin.lineinfile:
+    path: /boot/config.txt
+    line: "{{ item }}"
+    create: yes
+  with_items:
+    - "dtparam=i2c_vc=on"
+    - "dtoverlay=i2c-rtc, pcf85063a, i2c_csi_dsi"
+
+- name: Add i2c-dev module
+  ansible.builtin.lineinfile:
+    path: /etc/modules
+    line: i2c-dev
+
+
+
+- name: Disable Audio for compatibility
+  ansible.builtin.lineinfile:
+    path: /boot/config.txt
+    regexp: '^(\s*){{ line_to_check }}'
+    backrefs: yes
+    line: '#\1{{ line_to_check }}'
+  vars:
+    line_to_check: 'dtparam=audio=on'
+
+- name: Add GatewayStatusReporter cron entry
+  ansible.builtin.cron:
+    name: "my_cron_entry"
+    minute: "*/5"
+    hour: "*"
+    job: "/usr/bin/python3 /home/flwsb/GatewayStatusReporter/metadata_to_db.py"
+    state: present
